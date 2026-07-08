@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FoodAI Hyperparameter Report</title>
+  <style>
+    :root {
+      --bg: #f8f5ee;
+      --card: #ffffff;
+      --ink: #242424;
+      --muted: #6d6a63;
+      --line: #e8dfd2;
+      --primary: #f97316;
+      --primary-dark: #c2410c;
+      --green: #16a34a;
+      --blue: #2563eb;
+      --red: #ef4444;
+      --soft: #fff7ed;
+      --shadow: 0 16px 40px rgba(102, 69, 36, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(249, 115, 22, .16), transparent 32%),
+        radial-gradient(circle at top right, rgba(234, 179, 8, .13), transparent 35%),
+        var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, Apple SD Gothic Neo, Malgun Gothic, sans-serif;
+      line-height: 1.65;
+    }
+
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 42px 22px 80px; }
+
+    .hero {
+      background: linear-gradient(135deg, #fff 0%, #fff7ed 100%);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 42px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "🍽️";
+      position: absolute;
+      right: 34px;
+      top: 28px;
+      font-size: 96px;
+      opacity: .13;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 12px;
+      background: #ffedd5;
+      color: var(--primary-dark);
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    h1 { margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.1; letter-spacing: -1.5px; }
+    h2 { margin: 0 0 18px; font-size: 28px; letter-spacing: -0.5px; }
+    h3 { margin: 24px 0 12px; font-size: 20px; }
+    p { margin: 0; color: var(--muted); }
+
+    .hero p { max-width: 760px; font-size: 18px; margin-top: 16px; }
+
+    .grid { display: grid; gap: 18px; }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .section { margin-top: 28px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(70, 52, 30, .07);
+    }
+
+    .metric-card { min-height: 128px; }
+    .metric-label { color: var(--muted); font-size: 14px; font-weight: 700; }
+    .metric-value { font-size: 32px; font-weight: 900; margin-top: 6px; letter-spacing: -.5px; }
+    .metric-note { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    .badge-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .badge { padding: 8px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-weight: 700; color: #4b453b; font-size: 14px; }
+
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; font-size: 15px; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: center; }
+    th { background: #fff7ed; color: #7c2d12; font-weight: 900; }
+    tr:last-child td { border-bottom: 0; }
+    td:first-child, th:first-child { text-align: left; font-weight: 800; }
+    .best-row { background: #f0fdf4; }
+    .best { color: var(--green); font-weight: 900; }
+
+    .labels { display: flex; flex-wrap: wrap; gap: 10px; }
+    .food-label { background: #fff7ed; color: #7c2d12; border: 1px solid #fed7aa; border-radius: 12px; padding: 8px 12px; font-weight: 700; }
+
+    .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: stretch; }
+    .step { background: var(--soft); border: 1px solid #fed7aa; border-radius: 18px; padding: 16px 14px; text-align: center; font-weight: 800; min-height: 88px; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+    .step small { display:block; color: var(--muted); font-weight: 600; margin-top: 4px; }
+    .arrow { display:none; }
+
+    .chart-box { height: 310px; position: relative; padding: 12px 6px 4px; }
+    .bars { height: 230px; display:flex; align-items:flex-end; gap: 28px; justify-content:center; padding: 10px 0 0; border-bottom: 2px solid #e7d8c8; }
+    .bar-wrap { width: 88px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+    .bar { width: 58px; border-radius: 14px 14px 4px 4px; background: linear-gradient(180deg, #fb923c, #ea580c); display:flex; align-items:flex-start; justify-content:center; color:white; font-weight:900; font-size:13px; padding-top:8px; box-shadow: 0 12px 18px rgba(234, 88, 12, .25); }
+    .bar-label { margin-top:10px; font-weight:800; color:#5c4b3a; }
+    .bar-sub { color:var(--muted); font-size:12px; }
+
+    .line-chart { height: 300px; }
+    svg { width:100%; height:100%; overflow:visible; }
+    .axis { stroke:#d8c7b6; stroke-width:1; }
+    .gridline { stroke:#efe4da; stroke-width:1; }
+    .line { fill:none; stroke:var(--primary); stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+    .dot { fill:#fff; stroke:var(--primary); stroke-width:4; }
+    .dot-label { font-size:13px; font-weight:800; fill:#5c4b3a; }
+    .tick { font-size:12px; fill:#82776b; }
+
+    .mini-note { background: #fefce8; border: 1px solid #fde68a; color:#713f12; border-radius: 18px; padding: 16px 18px; font-weight: 700; }
+    .summary { background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%); border-color:#bbf7d0; }
+    .summary h2 { color:#166534; }
+
+    .code { background:#1f2937; color:#e5e7eb; border-radius:18px; padding:18px; font-family: Consolas, Monaco, monospace; font-size:14px; overflow:auto; }
+
+    footer { text-align:center; margin-top: 40px; color: var(--muted); font-size:14px; }
+
+    @media (max-width: 880px) {
+      .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr; }
+      .hero { padding: 30px 24px; }
+      .hero::after { display:none; }
+      .bars { gap: 14px; }
+      .bar-wrap { width: 76px; }
+      th, td { font-size: 13px; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Transformer Text Classification · FoodAI</div>
+      <h1>FoodAI - 저메추 AI 프로그램</h1>
+      <p>
+        사용자의 상황 문장을 KLUE-RoBERTa-small 기반 Transformer Encoder로 분석하고,
+        11개 음식 클래스 중 가장 적합한 음식을 확률 기반 Top3로 추천하는 텍스트 분류 프로젝트입니다.
+      </p>
+      <div class="badge-row">
+        <span class="badge">NLP Task: Text Classification</span>
+        <span class="badge">Model: KLUE-RoBERTa-small</span>
+        <span class="badge">Attention: Bidirectional Self-Attention</span>
+        <span class="badge">Best Epoch: 7</span>
+      </div>
+    </section>
+
+    <section class="section grid grid-4">
+      <div class="card metric-card">
+        <div class="metric-label">Best Accuracy</div>
+        <div class="metric-value">70.00%</div>
+        <div class="metric-note">num_train_epochs = 7</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-label">Best F1-score</div>
+        <div class="metric-value">69.80%</div>
+        <div class="metric-note">macro F1 기준</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-label">Food Classes</div>
+        <div class="metric-value">11</div>
+        <div class="metric-note">다중 클래스 분류</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-label">Selected Setting</div>
+        <div class="metric-value">Epoch 7</div>
+        <div class="metric-note">과적합 징후 미확인</div>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Project Flow</h2>
+      <div class="pipeline">
+        <div class="step">사용자 입력<small>상황 문장</small></div>
+        <div class="step">Tokenizer<small>문장 토큰화</small></div>
+        <div class="step">RoBERTa Encoder<small>Self-Attention</small></div>
+        <div class="step">Text Classification<small>11개 음식 확률</small></div>
+        <div class="step">Top3 Recommendation<small>추천 결과 출력</small></div>
+      </div>
+    </section>
+
+    <section class="section grid grid-2">
+      <div class="card">
+        <h2>Model & Task</h2>
+        <table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td>NLP Task</td><td>Text Classification</td></tr>
+          <tr><td>분류 방식</td><td>Multi-class Classification</td></tr>
+          <tr><td>Model</td><td>KLUE-RoBERTa-small</td></tr>
+          <tr><td>Transformer 구조</td><td>Encoder-only</td></tr>
+          <tr><td>Output</td><td>음식 Top3 추천</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Attention Mechanism</h2>
+        <h3>Bidirectional Multi-Head Self-Attention</h3>
+        <p>
+          입력 문장의 각 토큰이 서로를 참고하여 문맥을 이해하고, 여러 Attention Head가 서로 다른 관점에서 의미 정보를 학습합니다.
+          본 프로젝트는 Encoder-only 구조이므로 Cross-Attention은 사용하지 않았습니다.
+        </p>
+        <div class="mini-note" style="margin-top:16px;">
+          Cross-Attention은 주로 Encoder-Decoder 기반 번역·요약·생성 Task에서 Decoder가 Encoder 출력을 참고할 때 사용됩니다.
+        </div>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Food Labels</h2>
+      <div class="labels">
+        <span class="food-label">김밥</span>
+        <span class="food-label">떡볶이</span>
+        <span class="food-label">마라탕</span>
+        <span class="food-label">빙수</span>
+        <span class="food-label">삼계탕</span>
+        <span class="food-label">소고기</span>
+        <span class="food-label">죽</span>
+        <span class="food-label">치킨</span>
+        <span class="food-label">칼국수</span>
+        <span class="food-label">파전</span>
+        <span class="food-label">피자</span>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Hyperparameter Experiment</h2>
+      <p>
+        하이퍼파라미터인 <strong>num_train_epochs</strong>를 3, 5, 7로 변경하여 모델을 학습하고,
+        Accuracy와 F1-score를 기준으로 성능 변화를 비교했습니다.
+      </p>
+      <table style="margin-top:18px;">
+        <tr>
+          <th>num_train_epochs</th>
+          <th>Best Epoch</th>
+          <th>Final Accuracy</th>
+          <th>Final F1-score</th>
+          <th>해석</th>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Epoch 2 / 3</td>
+          <td>59.09%</td>
+          <td>56.37%</td>
+          <td>초기 성능 향상 후 정체</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Epoch 4</td>
+          <td>67.27%</td>
+          <td>66.16%</td>
+          <td>성능 향상 후 둔화</td>
+        </tr>
+        <tr class="best-row">
+          <td><strong>7</strong></td>
+          <td><strong>Epoch 7</strong></td>
+          <td class="best">70.00%</td>
+          <td class="best">69.80%</td>
+          <td><strong>가장 안정적인 최고 성능</strong></td>
+        </tr>
+      </table>
+    </section>
+
+    <section class="section grid grid-2">
+      <div class="card">
+        <h2>Final Accuracy Comparison</h2>
+        <div class="chart-box">
+          <div class="bars">
+            <div class="bar-wrap">
+              <div class="bar" style="height: 59.09%;">59.09</div>
+              <div class="bar-label">Epoch 3</div>
+              <div class="bar-sub">Accuracy</div>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 67.27%;">67.27</div>
+              <div class="bar-label">Epoch 5</div>
+              <div class="bar-sub">Accuracy</div>
+            </div>
+            <div class="bar-wrap">
+              <div class="bar" style="height: 70%;">70.00</div>
+              <div class="bar-label">Epoch 7</div>
+              <div class="bar-sub">Accuracy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Accuracy & F1-score Trend</h2>
+        <div class="line-chart">
+          <svg viewBox="0 0 520 300" role="img" aria-label="Accuracy and F1-score trend chart">
+            <line class="axis" x1="60" y1="250" x2="485" y2="250"></line>
+            <line class="axis" x1="60" y1="30" x2="60" y2="250"></line>
+            <line class="gridline" x1="60" y1="190" x2="485" y2="190"></line>
+            <line class="gridline" x1="60" y1="130" x2="485" y2="130"></line>
+            <line class="gridline" x1="60" y1="70" x2="485" y2="70"></line>
+            <text class="tick" x="22" y="254">50%</text>
+            <text class="tick" x="22" y="194">60%</text>
+            <text class="tick" x="22" y="134">70%</text>
+            <text class="tick" x="22" y="74">80%</text>
+
+            <!-- Accuracy line: x 120,260,400 / y mapping 50~80 -->
+            <polyline class="line" points="120,195.5 260,146.4 400,130"></polyline>
+            <circle class="dot" cx="120" cy="195.5" r="6"></circle>
+            <circle class="dot" cx="260" cy="146.4" r="6"></circle>
+            <circle class="dot" cx="400" cy="130" r="6"></circle>
+            <text class="dot-label" x="92" y="182">59.09%</text>
+            <text class="dot-label" x="232" y="133">67.27%</text>
+            <text class="dot-label" x="374" y="117">70.00%</text>
+
+            <!-- F1 line -->
+            <polyline points="120,211.8 260,153.0 400,131.2" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <circle cx="120" cy="211.8" r="6" fill="#fff" stroke="#2563eb" stroke-width="4"></circle>
+            <circle cx="260" cy="153.0" r="6" fill="#fff" stroke="#2563eb" stroke-width="4"></circle>
+            <circle cx="400" cy="131.2" r="6" fill="#fff" stroke="#2563eb" stroke-width="4"></circle>
+
+            <text class="tick" x="102" y="276">3</text>
+            <text class="tick" x="242" y="276">5</text>
+            <text class="tick" x="382" y="276">7</text>
+            <text class="tick" x="205" y="295">num_train_epochs</text>
+            <circle cx="352" cy="36" r="5" fill="#f97316"></circle><text class="tick" x="363" y="41">Accuracy</text>
+            <circle cx="432" cy="36" r="5" fill="#2563eb"></circle><text class="tick" x="443" y="41">F1</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid grid-3">
+      <div class="card">
+        <h2>Epoch 3</h2>
+        <table>
+          <tr><th>Epoch</th><th>Accuracy</th><th>F1</th></tr>
+          <tr><td>1</td><td>29.09%</td><td>20.68%</td></tr>
+          <tr><td>2</td><td>60.00%</td><td>56.11%</td></tr>
+          <tr><td>3</td><td>59.09%</td><td>56.37%</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Epoch 5</h2>
+        <table>
+          <tr><th>Epoch</th><th>Accuracy</th><th>F1</th></tr>
+          <tr><td>1</td><td>32.73%</td><td>27.88%</td></tr>
+          <tr><td>2</td><td>59.09%</td><td>58.82%</td></tr>
+          <tr><td>3</td><td>66.36%</td><td>64.43%</td></tr>
+          <tr><td>4</td><td>67.27%</td><td>66.29%</td></tr>
+          <tr><td>5</td><td>67.27%</td><td>66.16%</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Epoch 7</h2>
+        <table>
+          <tr><th>Epoch</th><th>Accuracy</th><th>F1</th></tr>
+          <tr><td>1</td><td>35.45%</td><td>29.79%</td></tr>
+          <tr><td>2</td><td>59.09%</td><td>58.96%</td></tr>
+          <tr><td>3</td><td>66.36%</td><td>65.18%</td></tr>
+          <tr><td>4</td><td>68.18%</td><td>67.67%</td></tr>
+          <tr><td>5</td><td>69.09%</td><td>68.57%</td></tr>
+          <tr><td>6</td><td>69.09%</td><td>68.67%</td></tr>
+          <tr><td>7</td><td>70.00%</td><td>69.80%</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="section card summary">
+      <h2>Final Interpretation</h2>
+      <p>
+        num_train_epochs를 3, 5, 7로 변경하며 비교한 결과, <strong>num_train_epochs = 7</strong>에서
+        Accuracy <strong>70.00%</strong>, F1-score <strong>69.80%</strong>로 가장 높은 성능을 기록했습니다.
+        따라서 FoodAI의 최종 학습 설정은 <strong>Epoch 7</strong>이 가장 적절하다고 판단했습니다.
+      </p>
+      <p style="margin-top:12px;">
+        일반적으로 Epoch를 지나치게 증가시키면 과적합이 발생할 수 있지만, 이번 실험에서는 Epoch 7까지
+        Accuracy와 F1-score가 지속적으로 향상되어 과적합의 징후는 확인되지 않았습니다.
+      </p>
+    </section>
+
+    <section class="section card">
+      <h2>Demo Output</h2>
+      <div class="code">상황을 입력하세요: 오늘 너무 덥다!
+
+🍽️ FoodAI 추천 결과
+━━━━━━━━━━━━━━━━━━━━
+🥇 🍧 빙수       70.12%
+🥈 🍜 칼국수     18.24%
+🥉 🥘 삼계탕      6.31%
+
+💡 추천 문구
+더운 날에는 시원한 빙수로 더위를 날려보세요!</div>
+    </section>
+
+    <footer>
+      FoodAI Hyperparameter Report · Transformer Text Classification · KLUE-RoBERTa-small
+    </footer>
+  </main>
+</body>
+</html>
